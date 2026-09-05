@@ -1,0 +1,346 @@
+import mongoose from "mongoose";
+import { IResult } from "../../../utils/interfaces.util";
+import PaystackService from "../paystack/paystack.service";
+import TransactionRepository from "./transaction.repository";
+import UserRepository from "@/modules/users/user/user.repository";
+import { Currency, NewTransactionDTO, PendingDTO } from "./transaction.dto";
+import { ICourse } from "@/modules/core/courses/course.interface";
+import {
+  TransactionLabel,
+  TransactionType,
+  TransactionStatus,
+  PaymentProvider,
+  ITransactionDoc,
+} from "./transaction.interface";
+import enrollRepository from "@/modules/core/enrollments/enroll.repository";
+import {
+  EnrollmentStatus,
+  EnrollmentTargetType,
+  IEnrollment,
+} from "@/modules/core/enrollments/enroll.interface";
+import courseRepository from "@/modules/core/courses/course.repository";
+import { IUserDoc } from "@/modules/users/user/user.interface";
+import { IPaystackWebhookEvent } from "../paystack/paystack.interface";
+import enrollmentService from "@/modules/core/enrollments/enroll.service";
+import enrollActivateService from "@/modules/core/enrollments/enroll.activate.service";
+
+/**
+ * Responsible for handling transactions. Paystack-based
+ * This service manages: transaction lifecycle, transaction initialization, verification of completed payments, webhook reconciliation
+ */
+class TransactionService {
+  constructor(
+    private transactionRepository = TransactionRepository,
+    private paystackService = PaystackService,
+    private courseRepo = courseRepository,
+    private enrollmentRepository = enrollRepository,
+    private userRepository = UserRepository,
+    private enrollActivation = enrollActivateService,
+  ) {}
+
+  /**
+   * @name initializePayment
+   * @describtion Create a local transaction and initialize it with paystack
+   * @param {enrollmentId} - Enrollment Id
+   * @param {userId} - User paying for the enrollment
+   * @returns {Promise<IResult>}
+   *
+   */
+  public async initializePayment(
+    enrollmentId: string,
+    userId: string,
+  ): Promise<IResult> {
+    let result: IResult = {
+      error: false,
+      message: "",
+      code: 200,
+      data: {},
+    };
+
+    // Find enrollment
+
+    const enrollmentResult =
+      await this.enrollmentRepository.getEnrollmentById(enrollmentId);
+
+    if (enrollmentResult.error || !enrollmentResult.data) {
+      result.error = true;
+      result.message =
+        "Enrollment not found. Please restart Enrollment Process";
+      result.code = 404;
+      return result;
+    }
+
+    const enrollment = enrollmentResult.data as IEnrollment;
+
+    // verify enrollment ownership
+    if (!enrollment.userId.equals(new mongoose.Types.ObjectId(userId))) {
+      result.error = true;
+      result.message = "Unauthorized";
+      result.code = 403;
+      return result;
+    }
+
+    const userResult = await this.userRepository.findById(userId);
+
+    const user = userResult.data as IUserDoc;
+
+    if (enrollment.targetType !== EnrollmentTargetType.COURSE) {
+      result.error = true;
+      result.message = "Payment is only available for course enrollments";
+      result.code = 400;
+      return result;
+    }
+
+    // Validate enrollment State
+    if (enrollment.status !== EnrollmentStatus.PENDING) {
+      result.error = true;
+      result.message = "This enrollment is not awaiting payment";
+      result.code = 400;
+      return result;
+    }
+
+    const courseId = enrollment.targetId;
+
+    // Get course
+    const courseResult = await this.courseRepo.getCourseById(String(courseId));
+
+    const course = courseResult.data as ICourse;
+
+    // Existing pending transaction
+    const pendingTransaction =
+      await this.transactionRepository.getPendingTransactionByEnrollmentId(
+        enrollmentId,
+      );
+
+    if (!pendingTransaction.error) {
+      // A pending transaction was found
+      console.log(pendingTransaction);
+      result.message = "Payment already initialized";
+      result.data = {
+        authorizationUrl: pendingTransaction.data?.authorizationUrl,
+        reference: pendingTransaction.data?.reference,
+      };
+      return result;
+    }
+    const reference = `PCPD-TXN-${Date.now()}`;
+
+    const response = await this.paystackService.intializePayment({
+      email: user.email,
+      amount: String(course.price),
+      reference,
+
+      metadata: {
+        enrollmentId,
+        courseId,
+        userId,
+      },
+    });
+
+    // Handle response from Paystack and create a local transaction record
+    if (!response.status) {
+      result = {
+        error: true,
+        message: "Failed to initialize transaction, please try again later",
+        code: 500,
+        data: {},
+      };
+      return result;
+    }
+
+    // create transaction locally
+
+    const newTransaction = await this.transactionRepository.createTransaction({
+      type: TransactionType.PAYMENT,
+      status: TransactionStatus.PENDING,
+      label: TransactionLabel.COURSE_PAYMENT,
+      description: `Course payment of ${course.price} ${Currency.NGN} for user ${userId}`,
+      providerName: PaymentProvider.PAYSTACK,
+      reference: reference,
+      currency: Currency.NGN,
+      amount: course.price,
+      userId: new mongoose.Types.ObjectId(userId),
+      enrollmentId: new mongoose.Types.ObjectId(enrollmentId),
+      courseId: new mongoose.Types.ObjectId(courseId),
+      accessCode: response.data?.access_code,
+      authorizationUrl: response.data?.authorization_url,
+    });
+
+    console.log(newTransaction);
+
+    result.message = "Payment initialized successfully";
+    result.data = response.data;
+    return result;
+  }
+
+  /**
+   * @name verifyTransaction
+   * @description verify a transaction with paystack after redirect or callback.
+   * @param reference Paystack transaction reference
+   * @returns
+   */
+  public async verifyTransaction(reference: string) {
+    let result: IResult = {
+      error: false,
+      message: "",
+      code: 200,
+      data: {},
+    };
+
+    if (reference == null) {
+      throw new Error("Reference is required to verify transaction");
+    }
+
+    const response = await this.paystackService.verifyTransaction(reference);
+
+    if (!response.status) {
+      result.error = true;
+      result.code = 400;
+      return result;
+    }
+
+    result.message = "Verification Successfully";
+    result.data = {
+      status: response.data?.status,
+      amount: response.data.amount,
+      currency: response.data.currency,
+      reference: response.data.reference,
+      paidAt: response.data.paid_at,
+      paymentMethod: response.data.channel,
+    };
+    return result;
+  }
+
+  /**
+   * @name handleWebhook
+   * @description Handle paystack webhook events. This is the final authority for transaction success or failure. Must be idempotent and signature-verified.
+   * Expected events:
+   * - charge.success
+   * - charge.failed
+   * @param payload - Raw webhook payload
+   * @returns {Promise<void>}
+   */
+  public async handleWebhook(eventData: IPaystackWebhookEvent) {
+    const eventType = eventData.event;
+    switch (eventType) {
+      case "chargesuccess":
+        console.log("marking payment as successfull");
+        await this.markTransactionSuccessful(
+          eventData.data.reference,
+          eventData.data,
+        );
+        break;
+      case "charge.failed":
+        await this.markTransactionFailed(
+          eventData.data.reference,
+          eventData.reason!,
+        );
+        break;
+      default:
+        console.log("webhook event not handled", eventType);
+        return;
+    }
+  }
+
+  /**
+   * @name markTransactionSuccessful
+   * @description Mark a transaction as successful. Called only after Paystack verification or webhook confirmation.
+   * @param {string} reference - Paystack reference.
+   * @param {Object} providerData - Full Paystack response.
+   *
+   * @returns {Promise<Object>} Updated transaction.
+   */
+  private async markTransactionSuccessful(
+    reference: string,
+    providerData: IPaystackWebhookEvent["data"],
+  ) {
+    // find transaction and check status
+    const findResult =
+      await this.transactionRepository.getTransactionByReference(reference);
+
+    if (findResult.error) {
+      throw new Error(`Transaction not found for reference: ${reference}`);
+    }
+
+    const transaction = findResult.data as ITransactionDoc;
+
+    // compare amount and currency to avoid fraud
+    if (
+      transaction.amount !== providerData.amount ||
+      transaction.currency !== providerData.currency
+    ) {
+      throw new Error(
+        `Transaction amount or currency mismatch for reference: ${reference}`,
+      );
+    }
+
+    if (transaction.status === TransactionStatus.SUCCESS) {
+      // call enrollment to activate
+      await this.enrollActivation.activateEnrollment(
+        String(transaction.enrollmentId),
+      );
+
+      return;
+    }
+
+    // update transaction
+    const updateTrans = {
+      status: TransactionStatus.SUCCESS,
+
+      metadata: {
+        ...transaction.metadata,
+        ...providerData.metadata,
+      },
+
+      // money
+      unitAmount: providerData.amount / 100,
+      fee: providerData.fees,
+      unitFee: providerData.fees ? providerData.fees / 100 : 0,
+
+      channel: providerData.channel,
+      reason: "",
+      message: providerData.gateway_response,
+
+      // provider
+      providerRef: providerData.id,
+      providerData: providerData,
+
+      policed: false,
+
+      webhookProcessed: true,
+    };
+
+    await this.transactionRepository.update(
+      String(transaction._id),
+      updateTrans,
+    );
+
+    // call enrollment to activate
+    await this.enrollActivation.activateEnrollment(
+      String(transaction.enrollmentId),
+    );
+
+    return;
+  }
+
+  /**
+   *@name markTransactionFailed
+   *@description Mark a transaction as failed. Must be safe to call multiple times.
+   * @param {string} reference - Paystack reference.
+   * @param {string} reason - Failure reason.
+   *
+   * @returns {Promise<Object>} Failed transaction.
+   */
+  async markTransactionFailed(reference: string, reason: string) {
+    // find transaction and check status
+    const findResult =
+      await this.transactionRepository.getTransactionByReference(reference);
+
+    if (findResult.error) {
+      throw new Error(`Transaction not found for reference: ${reference}`);
+    }
+
+    const transaction = findResult.data as ITransactionDoc;
+  }
+}
+
+export default new TransactionService();

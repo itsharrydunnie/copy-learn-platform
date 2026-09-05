@@ -1,0 +1,37 @@
+[
+    {
+        "name": "super-admin",
+        "slug": "super-admin",
+        "description": "Has unrestricted access to the entire platform for system-wide configuration, management, and oversight of all users, projects, and operations."
+    },
+    {
+        "name": "admin",
+        "slug": "admin",
+        "description": "Platform administrators with elevated access to manage users, projects, hackathons, and platform settings."
+    },
+    {
+        "name": "business",
+        "slug": "business",
+        "description": "Organizations, companies, or EdTech providers who create projects, host hackathons, and manage talent engagement on the platform."
+    },
+    {
+        "name": "talent",
+        "slug": "talent",
+        "description": "Individual talents who participate in hackathons, work on projects, and build skills through competitions and challenges."
+    },
+    {
+        "name": "user",
+        "slug": "user",
+        "description": "General platform users who can participate in projects, view content, and engage with the Pacepard community."
+    },
+    {
+        "name": "mentor",
+        "slug": "mentor",
+        "description": "Mentors who provide guidance and support in projects, hackathons, and workspaces. Can have platform accounts or exist as external profiles only."
+    },
+    {
+        "name": "judge",
+        "slug": "judge",
+        "description": "Judges who evaluate projects and hackathons. Can have platform accounts or exist as external profiles only."
+    }
+]
