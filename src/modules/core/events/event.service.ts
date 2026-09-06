@@ -225,10 +225,13 @@ class EventService {
       return program;
     }
 
-    return this.eventRepository.getEvents({
-      programId,
-      status: EventStatus.PUBLISHED,
-    });
+    return this.eventRepository.getEvents(
+      {
+        programId,
+        status: EventStatus.PUBLISHED,
+      },
+      options,
+    );
   }
 
   /**

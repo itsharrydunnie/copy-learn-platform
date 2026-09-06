@@ -29,7 +29,8 @@ export interface IProgram extends Document {
 export enum ProgramStatus {
   DRAFT = "draft",
   PUBLISHED = "published",
-  ARCHIVED = "archived",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
 }
 
 export interface CreateProgramDto {
@@ -46,5 +47,6 @@ export interface UpdateProgramDto {
   description?: string;
   shortDescription?: string;
   thumbnail?: string;
+  coverImage?: string;
   enrollmentEnabled?: boolean;
 }

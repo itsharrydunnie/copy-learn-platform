@@ -47,6 +47,21 @@ class ScholarshipRepository extends RepositoryService<IScholarship> {
     });
   }
 
+  async getActiveScholarshipByUserAndTarget(
+    userId: string,
+    targetType: ScholarshipTargetType,
+    targetId: string,
+  ): Promise<IResult> {
+    return this.findOne({
+      userId,
+      targetType,
+      targetId,
+      status: {
+        $in: [ScholarshipStatus.PENDING, ScholarshipStatus.APPROVED],
+      },
+    });
+  }
+
   async updateScholarship(
     scholarshipId: string,
     updateData: Partial<IScholarship>,

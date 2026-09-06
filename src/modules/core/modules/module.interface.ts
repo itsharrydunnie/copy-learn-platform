@@ -62,7 +62,7 @@ export interface ModuleInstructor {
 }
 
 export interface ModuleRecording {
-  url: string;
+  url?: string;
   availableAt?: Date;
 }
 

@@ -52,6 +52,10 @@ class ProgramService {
       errors.push("Invalid thumbnail");
     }
 
+    if (data.coverImage !== undefined && typeof data.coverImage !== "string") {
+      errors.push("Invalid coverImage");
+    }
+
     if (
       data.enrollmentEnabled !== undefined &&
       typeof data.enrollmentEnabled !== "boolean"
@@ -77,6 +81,10 @@ class ProgramService {
           : undefined,
       thumbnail:
         typeof data.thumbnail === "string" ? data.thumbnail.trim() : undefined,
+      coverImage:
+        typeof data.coverImage === "string"
+          ? data.coverImage.trim()
+          : undefined,
       enrollmentEnabled:
         typeof data.enrollmentEnabled === "boolean"
           ? data.enrollmentEnabled
@@ -148,6 +156,14 @@ class ProgramService {
       }
     }
 
+    if (data.coverImage !== undefined) {
+      if (typeof data.coverImage !== "string") {
+        errors.push("Invalid coverImage");
+      } else {
+        result.coverImage = data.coverImage.trim();
+      }
+    }
+
     if (data.enrollmentEnabled !== undefined) {
       if (typeof data.enrollmentEnabled !== "boolean") {
         errors.push("Invalid enrollmentEnabled");
@@ -207,11 +223,15 @@ class ProgramService {
   async getProgramById(id: string): Promise<IResult> {
     const program = await this.programRepository.getProgramById(id);
 
+    if (program.error) {
+      return program;
+    }
+
     if (program.data.status !== ProgramStatus.PUBLISHED) {
       let result: IResult = {
-        error: false,
+        error: true,
         message: "",
-        code: 200,
+        code: 404,
         data: {},
       };
       result.message = "Program not found or not published.";
@@ -236,7 +256,13 @@ class ProgramService {
     };
     const program = await this.programRepository.getProgramByIdOrSlug(slug);
 
+    if (program.error) {
+      return program;
+    }
+
     if (program.data.status !== ProgramStatus.PUBLISHED) {
+      result.error = true;
+      result.code = 404;
       result.message = "Program not found or not published.";
 
       return result;

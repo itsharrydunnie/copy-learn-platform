@@ -50,6 +50,12 @@ const scholarshipSchema = new Schema<IScholarship>(
       required: true,
       trim: true,
     },
+
+    canPayEnrollmentFee: {
+      type: Boolean,
+      required: true,
+    },
+
     status: {
       type: String,
       enum: Object.values(ScholarshipStatus),

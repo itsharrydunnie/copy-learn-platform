@@ -11,8 +11,9 @@ import { addJob } from "../../tasks/jobs/job";
 import { JobChannel, QueueChannel } from "../../queues/channel.queue";
 import { IUserDoc, OtpType } from "../users/user/user.interface";
 import { ICourse } from "../core/courses/course.interface";
+import courseService from "../core/courses/course.service";
 
-const BASE_FOLDER = `${appRootPath.path}/apps/api/src`;
+const BASE_FOLDER = `${appRootPath.path}/src`;
 
 class AppEmailService {
   private config: EmailConfig;
@@ -72,6 +73,11 @@ class AppEmailService {
       if (data.template?.includes("team_invite")) {
         templateFolder = "authentication";
       } else if (
+        data.template?.includes("scholarship") ||
+        data.template?.includes("course-enrollment-confirmed")
+      ) {
+        templateFolder = "transactional";
+      } else if (
         data.template?.includes("welcome") ||
         data.template?.includes("confirmation")
       ) {
@@ -88,11 +94,6 @@ class AppEmailService {
         data.template?.includes("marketing")
       ) {
         templateFolder = "marketing";
-      } else if (
-        data.template?.includes("scholarship") ||
-        data.template?.includes("course-enrollment-confirmed")
-      ) {
-        templateFolder = "transactional";
       }
 
       const templatePath = `${BASE_FOLDER}/views/emails/${templateFolder}/${data.template}.pug`;
@@ -259,7 +260,7 @@ class AppEmailService {
    * @param config The email configuration
    * @returns Result object indicating the job was successfully queued (202 Accepted)
    */
-  private queueEmailJob(config: SendEmailDTO): IResult {
+  private async queueEmailJob(config: SendEmailDTO): Promise<IResult> {
     // Determine the final job data payload (IEmailJob structure)
     const { driver, user, options, code, metadata, template } = config;
     const _template = template;
@@ -277,7 +278,7 @@ class AppEmailService {
     };
 
     // Queue the job
-    addJob({
+    await addJob({
       queueName: JobChannel.SendEmail,
       jobName: QueueChannel.Emails,
       data: jobData,
@@ -506,21 +507,6 @@ class AppEmailService {
     });
   }
 
-  async sendPreacherWelcomeEmail(user: IUserDoc) {
-    return this.queueEmailJob({
-      driver: this.config.service,
-      user,
-      template: EmailTemplate.WELCOME,
-      options: {
-        subject: `Welcome Preacher, ${user.firstName}!`,
-        bodyOne: `You’ve been onboarded as a preacher on Pacepard.`,
-        bodyTwo: `Start uploading sermons to bless your listeners.`,
-        buttonText: "Upload Sermon",
-        buttonUrl: `${this.config.clientUrl}/sermons/upload`,
-      },
-    });
-  }
-
   async sendCreatorWelcomeEmail(user: IUserDoc) {
     return this.queueEmailJob({
       driver: this.config.service,
@@ -630,7 +616,7 @@ class AppEmailService {
         subject: "Congratulations! Your scholarship has been approved 🎉",
         salute: `Hi ${user.firstName},`,
         bodyOne: `Your scholarship application for ${course.title} has been approved.`,
-        bodyTwo: `To secure your place, please complete the enrollment payment of ${course.currency} ${course.scholarshipPrice}.`,
+        bodyTwo: `To secure your place, please complete the enrollment payment of ${course.currency} ${courseService.fromMinorUnit(course.scholarshipPrice)}.`,
         bodyThree: `Once your payment is confirmed, your course enrollment will be activated.`,
         buttonText: "Complete Enrollment",
         buttonUrl: course.payment.shopUrl,

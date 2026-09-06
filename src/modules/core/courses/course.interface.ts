@@ -12,8 +12,8 @@ export interface ICourse extends Document {
 
   thumbnail?: string;
 
-  price: number;
-  scholarshipPrice: number; // unit
+  price: number; // minor unit
+  scholarshipPrice: number; /// minor unit
   currency: string;
 
   payment: {
@@ -42,8 +42,8 @@ export interface CreateCourseDto {
 
   thumbnail?: string;
 
-  price: number; // unit
-  scholarshipPrice: number; // unit
+  price: number; // major unit
+  scholarshipPrice: number; // major unit
   currency: string;
 
   payment: {
@@ -66,8 +66,8 @@ export interface UpdateCourseDto {
 
   thumbnail?: string;
 
-  price?: number;
-  scholarshipPrice?: number; // unit
+  price?: number; // major unit
+  scholarshipPrice?: number; // major unit
   currency?: string;
 
   payment?: {

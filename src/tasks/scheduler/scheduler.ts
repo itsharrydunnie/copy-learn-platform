@@ -14,6 +14,9 @@ export const startScheduler = async (): Promise<void> => {
     // Start scheduler workers first
     await startSchedulerWorkers();
 
+    // Start all scheduled jobs
+    startScheduledJobs();
+
     logger.log({
       data: "Scheduler system started successfully",
       label: "scheduler-init",

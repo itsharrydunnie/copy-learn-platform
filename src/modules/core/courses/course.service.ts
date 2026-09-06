@@ -43,8 +43,8 @@ class CourseService {
       errors.push("Price must be a valid non-negative number");
     }
     if (
-      typeof data.ScholarshipPrice !== "number" ||
-      data.ScholarshipPrice < 0
+      typeof data.scholarshipPrice !== "number" ||
+      data.scholarshipPrice < 0
     ) {
       errors.push("Scholarship Price must be a valid non-negative number");
     }
@@ -361,6 +361,7 @@ class CourseService {
     let counter = 1;
 
     const price = this.toMinorUnit(dto.price);
+    const scholarshipPrice = this.toMinorUnit(dto.scholarshipPrice);
 
     while (await this.courseRepository.slugExists(slug)) {
       counter++;
@@ -370,6 +371,7 @@ class CourseService {
     return this.courseRepository.createCourse({
       ...dto,
       price,
+      scholarshipPrice,
       slug,
     });
   }
@@ -505,6 +507,12 @@ class CourseService {
 
     if (updateData.price !== undefined) {
       updateData.price = this.toMinorUnit(updateData.price);
+    }
+
+    if (updateData.scholarshipPrice !== undefined) {
+      updateData.scholarshipPrice = this.toMinorUnit(
+        updateData.scholarshipPrice,
+      );
     }
 
     return this.courseRepository.updateCourse(courseId, updateData);

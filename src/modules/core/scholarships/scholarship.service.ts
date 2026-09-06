@@ -26,6 +26,7 @@ import {
 import { IResult } from "@/utils/interfaces.util";
 import BullQueue from "@/queues/queue";
 import { JobChannel, QueueChannel } from "@/queues/channel.queue";
+import courseService from "../courses/course.service";
 
 class ScholarshipService {
   constructor(
@@ -170,27 +171,20 @@ class ScholarshipService {
     }
 
     const existingScholarship =
-      await this.scholarshipRepository.getScholarshipByUserAndTarget(
+      await this.scholarshipRepository.getActiveScholarshipByUserAndTarget(
         userId,
         dto.targetType,
         dto.targetId,
       );
 
     if (!existingScholarship.error && existingScholarship.data?._id) {
-      const status = existingScholarship.data.status;
-
-      if (
-        status === ScholarshipStatus.PENDING ||
-        status === ScholarshipStatus.APPROVED
-      ) {
-        return {
-          code: 409,
-          error: true,
-          message:
-            "User already has an active scholarship application for this course",
-          data: [],
-        };
-      }
+      return {
+        code: 409,
+        error: true,
+        message:
+          "User already has an active scholarship application for this course",
+        data: [],
+      };
     }
 
     const scholarshipData = {
@@ -260,6 +254,7 @@ class ScholarshipService {
      * processed, do not create another enrollment/transaction.
      */
     if (scholarship.status !== ScholarshipStatus.PENDING) {
+      // if email sending fails after scholarship was approved,the job can retry and hit this part and the email may never be sent should fix
       return {
         error: false,
         message: "Scholarship application already processed",
@@ -401,7 +396,7 @@ class ScholarshipService {
         enrollment,
         transaction: transactionResult.data,
         payment: {
-          amount: course.scholarshipPrice,
+          amount: courseService.fromMinorUnit(course.scholarshipPrice),
           currency: course.currency,
           shopUrl: course.payment.shopUrl,
         },

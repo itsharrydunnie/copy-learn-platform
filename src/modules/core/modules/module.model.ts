@@ -70,7 +70,6 @@ const moduleSchema = new Schema<IModule>(
     recording: {
       url: {
         type: String,
-        required: true,
         trim: true,
       },
       availableAt: {
@@ -101,6 +100,5 @@ const moduleSchema = new Schema<IModule>(
 moduleSchema.index({ courseId: 1, order: 1 }, { unique: true });
 
 const Module = model<IModule>(DbModels.MODULE, moduleSchema);
-
 
 export default Module;

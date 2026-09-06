@@ -28,6 +28,8 @@ const processScholarshipJob = async (
         label: "scholarship-job",
         type: "error",
       });
+
+      throw new Error(result.message);
     }
 
     loggerUtil.log({

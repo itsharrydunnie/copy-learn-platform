@@ -1,8 +1,8 @@
-import { AddJobDTO, AddJobsDTO } from '../../dtos/queue.dto';
-import { Random } from '@btffamily/pacitude';
-import BullQueue from '../../queues/queue';
-import logger from '../../utils/logger.util';
-import { JobOptions } from 'bull';
+import { AddJobDTO, AddJobsDTO } from "../../dtos/queue.dto";
+import { Random } from "@btffamily/pacitude";
+import BullQueue from "../../queues/queue";
+import logger from "../../utils/logger.util";
+import { JobOptions } from "bull";
 
 /**
  * @name addJob
@@ -10,38 +10,38 @@ import { JobOptions } from 'bull';
  * @param job
  */
 
-const addJob = (payload: AddJobDTO) => {
-    const { queueName, jobName, data, options } = payload;
+const addJob = async (payload: AddJobDTO) => {
+  const { queueName, jobName, data, options } = payload;
 
-    // Determine the Job ID: use provided ID or generate a new one
-    const generatedJobId = Random.randomCode(6, true).toUpperCase();
-    const jobOptions = options
-        ? options
-        : {
-              attempts: 5,
-              delay: 3000,
-              jobId: generatedJobId,
-          };
+  // Determine the Job ID: use provided ID or generate a new one
+  const generatedJobId = Random.randomCode(6, true).toUpperCase();
+  const jobOptions = options
+    ? options
+    : {
+        attempts: 5,
+        delay: 3000,
+        jobId: generatedJobId,
+      };
 
-    // Get the final jobId that will be used
-    const jobId = jobOptions.jobId || generatedJobId;
+  // Get the final jobId that will be used
+  const jobId = jobOptions.jobId || generatedJobId;
 
-    BullQueue.addJobs({
-        queueName: queueName,
-        jobs: [
-            {
-                name: jobName,
-                data: data,
-                options: jobOptions,
-            },
-        ],
-    });
+  await BullQueue.addJobs({
+    queueName: queueName,
+    jobs: [
+      {
+        name: jobName,
+        data: data,
+        options: jobOptions,
+      },
+    ],
+  });
 
-    logger.log({
-        data: `Successfully added job ${jobId} to ${queueName}`,
-        label: 'background-job',
-        type: 'success',
-    });
+  logger.log({
+    data: `Successfully added job ${jobId} to ${queueName}`,
+    label: "background-job",
+    type: "success",
+  });
 };
 
 /**
@@ -50,49 +50,49 @@ const addJob = (payload: AddJobDTO) => {
  * @param jobs
  */
 const addJobs = async (payload: AddJobsDTO): Promise<void> => {
-    const { queueName, jobs } = payload;
+  const { queueName, jobs } = payload;
 
-    // Array to collect IDs for the final log summary
-    const addedJobIds: (string | number)[] = [];
-    const numberOfJobs = jobs.length;
+  // Array to collect IDs for the final log summary
+  const addedJobIds: (string | number)[] = [];
+  const numberOfJobs = jobs.length;
 
-    const queue = await BullQueue.createQueue({ name: queueName });
+  const queue = await BullQueue.createQueue({ name: queueName });
 
-    for (const job of jobs) {
-        // 1. Generate and ensure jobId is available
-        const jobId =
-            job.options?.jobId || Random.randomCode(6, true).toUpperCase();
+  for (const job of jobs) {
+    // 1. Generate and ensure jobId is available
+    const jobId =
+      job.options?.jobId || Random.randomCode(6, true).toUpperCase();
 
-        // 2. Add the job and await confirmation
-        await queue.add(job.name, job.data, {
-            attempts: 5,
-            jobId,
-            ...job.options,
-        } as JobOptions);
+    // 2. Add the job and await confirmation
+    await queue.add(job.name, job.data, {
+      attempts: 5,
+      jobId,
+      ...job.options,
+    } as JobOptions);
 
-        // --- Individual Log (Traceability) ---
-        logger.log({
-            data: `Successfully added job ${jobId} to ${queueName}`,
-            label: 'background-job-item',
-            type: 'info',
-        });
+    // --- Individual Log (Traceability) ---
+    logger.log({
+      data: `Successfully added job ${jobId} to ${queueName}`,
+      label: "background-job-item",
+      type: "info",
+    });
 
-        // 3. Collect the ID for the final summary log
-        addedJobIds.push(jobId);
-    }
+    // 3. Collect the ID for the final summary log
+    addedJobIds.push(jobId);
+  }
 
-    // --- Summary Log (Confirmation) ---
-    if (numberOfJobs > 0) {
-        // Only log a summary if jobs were actually added
-        const idList = addedJobIds.join(', ');
-        const logData = `BATCH SUMMARY: Successfully submitted ${numberOfJobs} jobs to queue '${queueName}'. IDs: ${idList}`;
+  // --- Summary Log (Confirmation) ---
+  if (numberOfJobs > 0) {
+    // Only log a summary if jobs were actually added
+    const idList = addedJobIds.join(", ");
+    const logData = `BATCH SUMMARY: Successfully submitted ${numberOfJobs} jobs to queue '${queueName}'. IDs: ${idList}`;
 
-        logger.log({
-            data: logData,
-            label: 'background-job-batch', // Use a specific label for the batch
-            type: 'success', // Use 'success' for confirmation that the batch submitted
-        });
-    }
+    logger.log({
+      data: logData,
+      label: "background-job-batch", // Use a specific label for the batch
+      type: "success", // Use 'success' for confirmation that the batch submitted
+    });
+  }
 };
 
 export { addJob, addJobs };

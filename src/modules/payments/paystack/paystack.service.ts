@@ -12,15 +12,19 @@ dotenv.config();
 class PaystackService {
   private readonly paystack: Paystack;
   private readonly secretKey: string;
+  private readonly callbackUrl: string | undefined;
 
   constructor(secretKey?: string) {
     const key = secretKey ?? process.env.PAYSTACK_SECRET_KEY;
+
+    const callbackUrl = process.env.PAYSTACK_CALLBACK_URL;
 
     if (!key) {
       throw new Error("Paystack secret key not set");
     }
 
     this.secretKey = key;
+    this.callbackUrl = callbackUrl;
     this.paystack = new Paystack(key);
   }
 
@@ -31,8 +35,7 @@ class PaystackService {
         email: dto.email,
         amount: dto.amount,
         reference: dto.reference, // optional reference from metadata
-        callback_url:
-          "https://unaxiomatically-adopted-antwan.ngrok-free.dev/api/v1/payment/callback",
+        callback_url: this.callbackUrl,
         metadata: dto.metadata,
       });
       return response;

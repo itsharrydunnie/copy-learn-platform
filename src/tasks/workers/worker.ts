@@ -6,8 +6,6 @@ const startWorkers = async () => {
   const emailWorker = await startEmailWorker();
   //
 
-  await startSchedulerWorkers();
-
   process.on("SIGTERM", async () => {
     await Promise.all([emailWorker.close()]);
     logger.log({

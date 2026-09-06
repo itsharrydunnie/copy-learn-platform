@@ -228,6 +228,7 @@ class TransactionService {
     const eventType = eventData.event;
     switch (eventType) {
       case "chargesuccess":
+      case "charge.success":
         const email = eventData.data.customer?.email;
 
         if (email) {
@@ -247,6 +248,7 @@ class TransactionService {
 
         break;
 
+      case "chargefailed":
       case "charge.failed":
         await this.markTransactionFailed(
           eventData.data.reference,
