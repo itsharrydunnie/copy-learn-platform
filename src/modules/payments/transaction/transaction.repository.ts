@@ -44,6 +44,30 @@ class TransactionRepository extends RepositoryService<ITransactionDoc> {
   ): Promise<IResult> {
     return this.update(transactionId, data);
   }
+
+  async getPendingScholarshipTransactionByUserId(
+    userId: string,
+  ): Promise<IResult> {
+    return this.findOne({
+      userId,
+      status: TransactionStatus.PENDING,
+      "metadata.paymentSource": "shop_url",
+    });
+  }
+
+  async getPendingScholarshipTransaction(
+    userId: string,
+    amount: number,
+    currency: string,
+  ): Promise<IResult> {
+    return this.findOne({
+      userId,
+      status: TransactionStatus.PENDING,
+      "metadata.paymentSource": "shop_url",
+      amount,
+      currency,
+    });
+  }
 }
 
 export default new TransactionRepository();

@@ -23,6 +23,9 @@ import { IUserDoc } from "@/modules/users/user/user.interface";
 import { IPaystackWebhookEvent } from "../paystack/paystack.interface";
 import enrollmentService from "@/modules/core/enrollments/enroll.service";
 import enrollActivateService from "@/modules/core/enrollments/enroll.activate.service";
+import scholarshipRepository from "@/modules/core/scholarships/scholarship.repository";
+import { ScholarshipStatus } from "@/modules/core/scholarships/scholarship.interface";
+import EmailService from "@/modules/internals/email.service";
 
 /**
  * Responsible for handling transactions. Paystack-based
@@ -36,6 +39,8 @@ class TransactionService {
     private enrollmentRepository = enrollRepository,
     private userRepository = UserRepository,
     private enrollActivation = enrollActivateService,
+    private scholarshipRepo = scholarshipRepository,
+    private emailService = EmailService,
   ) {}
 
   /**
@@ -223,12 +228,25 @@ class TransactionService {
     const eventType = eventData.event;
     switch (eventType) {
       case "chargesuccess":
-        console.log("marking payment as successfull");
+        const email = eventData.data.customer?.email;
+
+        if (email) {
+          const scholarshipHandled = await this.handleScholarshipPayment(
+            eventData.data,
+          );
+
+          if (scholarshipHandled) {
+            break;
+          }
+        }
+
         await this.markTransactionSuccessful(
           eventData.data.reference,
           eventData.data,
         );
+
         break;
+
       case "charge.failed":
         await this.markTransactionFailed(
           eventData.data.reference,
@@ -309,15 +327,44 @@ class TransactionService {
       webhookProcessed: true,
     };
 
-    await this.transactionRepository.update(
+    const updateTransactResult = await this.transactionRepository.update(
       String(transaction._id),
       updateTrans,
     );
 
-    // call enrollment to activate
-    await this.enrollActivation.activateEnrollment(
+    if (updateTransactResult.error) {
+      throw new Error(updateTransactResult.message);
+    }
+    // Activate the pending enrollment
+    const activationResult = await this.enrollActivation.activateEnrollment(
       String(transaction.enrollmentId),
     );
+
+    if (activationResult.error) {
+      throw new Error(activationResult.message);
+    }
+
+    const courseResult = await this.courseRepo.getCourseById(
+      String(transaction.courseId),
+    );
+    const course = courseResult.data as ICourse;
+
+    const userResult = await this.userRepository.findById(
+      String(transaction.userId),
+    );
+
+    const user = userResult.data as IUserDoc;
+    const emailResult =
+      await this.emailService.sendCourseEnrollmentConfirmedEmail(
+        user,
+        course,
+        providerData.amount,
+        providerData.currency,
+      );
+
+    if (emailResult.error) {
+      throw new Error(emailResult.message);
+    }
 
     return;
   }
@@ -340,6 +387,134 @@ class TransactionService {
     }
 
     const transaction = findResult.data as ITransactionDoc;
+  }
+
+  private async handleScholarshipPayment(
+    providerData: IPaystackWebhookEvent["data"],
+  ): Promise<boolean> {
+    const email = providerData.customer?.email;
+
+    if (!email) {
+      return false;
+    }
+
+    const userResult = await this.userRepository.findByEmail(
+      email.toLowerCase(),
+    );
+
+    if (userResult.error || !userResult.data) {
+      return false;
+    }
+
+    const user = userResult.data as IUserDoc;
+
+    const transactionResult =
+      await this.transactionRepository.getPendingScholarshipTransaction(
+        String(user._id),
+        providerData.amount,
+        providerData.currency,
+      );
+
+    if (transactionResult.error || !transactionResult.data) {
+      return false;
+    }
+
+    const transaction = transactionResult.data as ITransactionDoc;
+
+    // Idempotency
+    if (transaction.status === TransactionStatus.SUCCESS) {
+      return true;
+    }
+
+    // Confirm the transaction actually belongs to a scholarship flow.
+    if (transaction.metadata?.paymentSource !== "shop_url") {
+      return false;
+    }
+
+    // Mark transaction successful
+    await this.transactionRepository.update(String(transaction._id), {
+      status: TransactionStatus.SUCCESS,
+
+      metadata: {
+        ...transaction.metadata,
+        paystackReference: providerData.reference,
+      },
+
+      unitAmount: providerData.amount / 100,
+      fee: providerData.fees,
+      unitFee: providerData.fees ? providerData.fees / 100 : 0,
+
+      channel: providerData.channel,
+      reason: "",
+      message: providerData.gateway_response,
+
+      providerRef: providerData.id,
+      providerData,
+
+      policed: false,
+      webhookProcessed: true,
+    });
+
+    // Activate the pending enrollment
+    const activationResult = await this.enrollActivation.activateEnrollment(
+      String(transaction.enrollmentId),
+    );
+
+    if (activationResult.error) {
+      throw new Error(activationResult.message);
+    }
+    // Scholarship will be marked PAID here in the next step.
+
+    const scholarshipId = transaction.metadata?.scholarshipId;
+
+    if (!scholarshipId) {
+      throw new Error(
+        `Scholarship transaction ${transaction._id} is missing scholarshipId`,
+      );
+    }
+
+    const scholarshipResult = await this.scholarshipRepo.getScholarshipById(
+      String(scholarshipId),
+    );
+
+    if (scholarshipResult.error || !scholarshipResult.data) {
+      throw new Error(`Scholarship not found: ${scholarshipId}`);
+    }
+
+    const scholarship = scholarshipResult.data;
+
+    if (scholarship.status === ScholarshipStatus.PAID) {
+      return true;
+    }
+
+    if (scholarship.status !== ScholarshipStatus.APPROVED) {
+      throw new Error(
+        `Scholarship cannot be marked as paid from status: ${scholarship.status}`,
+      );
+    }
+
+    await scholarshipRepository.updateScholarship(String(scholarship._id), {
+      status: ScholarshipStatus.PAID,
+    });
+
+    const courseResult = await this.courseRepo.getCourseById(
+      String(transaction.courseId),
+    );
+    const course = courseResult.data as ICourse;
+
+    const emailResult =
+      await this.emailService.sendCourseEnrollmentConfirmedEmail(
+        user,
+        course,
+        providerData.amount,
+        providerData.currency,
+      );
+
+    if (emailResult.error) {
+      throw new Error(emailResult.message);
+    }
+
+    return true;
   }
 }
 

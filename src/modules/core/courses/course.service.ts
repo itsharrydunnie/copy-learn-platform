@@ -42,6 +42,12 @@ class CourseService {
     if (typeof data.price !== "number" || data.price < 0) {
       errors.push("Price must be a valid non-negative number");
     }
+    if (
+      typeof data.ScholarshipPrice !== "number" ||
+      data.ScholarshipPrice < 0
+    ) {
+      errors.push("Scholarship Price must be a valid non-negative number");
+    }
 
     if (typeof data.currency !== "string" || !data.currency.trim()) {
       errors.push("Currency is required");
@@ -133,6 +139,7 @@ class CourseService {
             ? data.thumbnail.trim()
             : undefined,
         price: data.price as number,
+        scholarshipPrice: data.scholarshipPrice as number,
         currency: (data.currency as string).trim().toUpperCase(),
         payment: {
           provider: (data.payment as Record<string, unknown>)
@@ -213,6 +220,16 @@ class CourseService {
         errors.push("Price must be a valid non-negative number");
       } else {
         result.price = data.price;
+      }
+    }
+    if (data.scholarshipPrice !== undefined) {
+      if (
+        typeof data.scholarshipPrice !== "number" ||
+        data.scholarshipPrice < 0
+      ) {
+        errors.push("Scholarship Price must be a valid non-negative number");
+      } else {
+        result.scholarshipPrice = data.scholarshipPrice;
       }
     }
 

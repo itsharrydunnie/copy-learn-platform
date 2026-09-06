@@ -17,13 +17,19 @@ class EnrollmentActivationService {
 
     const enrollment = enrollmentResult.data as IEnrollment;
 
-    if (
-      enrollment.status === EnrollmentStatus.ACTIVE ||
-      enrollment.status === EnrollmentStatus.CANCELLED
-    ) {
+    if (enrollment.status === EnrollmentStatus.ACTIVE) {
+      return {
+        error: false,
+        message: "Enrollment is already active",
+        code: 200,
+        data: enrollment,
+      };
+    }
+
+    if (enrollment.status === EnrollmentStatus.CANCELLED) {
       return {
         error: true,
-        message: "Enrollment cannot be activated from its current status",
+        message: "Cancelled enrollment cannot be activated",
         code: 409,
         data: enrollment,
       };

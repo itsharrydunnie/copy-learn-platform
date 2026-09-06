@@ -1,27 +1,30 @@
-import logger from '../../utils/logger.util';
-import startEmailWorker from './email.worker';
+import logger from "../../utils/logger.util";
+import startEmailWorker from "./email.worker";
+import startSchedulerWorkers from "./scheduler.worker";
 
 const startWorkers = async () => {
-    const emailWorker = await startEmailWorker();
-    //
+  const emailWorker = await startEmailWorker();
+  //
 
-    process.on('SIGTERM', async () => {
-        await Promise.all([emailWorker.close()]);
-        logger.log({
-            data: '[SIGTERM]: Shutdown all Queue listeners',
-            label: 'worker',
-            type: 'info',
-        });
-    });
+  await startSchedulerWorkers();
 
-    process.on('SIGINT', async () => {
-        await Promise.all([emailWorker.close()]);
-        logger.log({
-            data: '[SIGINT]: Shutdown all Queue listeners',
-            label: 'worker',
-            type: 'info',
-        });
+  process.on("SIGTERM", async () => {
+    await Promise.all([emailWorker.close()]);
+    logger.log({
+      data: "[SIGTERM]: Shutdown all Queue listeners",
+      label: "worker",
+      type: "info",
     });
+  });
+
+  process.on("SIGINT", async () => {
+    await Promise.all([emailWorker.close()]);
+    logger.log({
+      data: "[SIGINT]: Shutdown all Queue listeners",
+      label: "worker",
+      type: "info",
+    });
+  });
 };
 
 export default startWorkers;

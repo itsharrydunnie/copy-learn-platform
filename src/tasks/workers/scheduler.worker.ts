@@ -5,6 +5,7 @@ import logger from "../../utils/logger.util";
 import processReminderJob from "../jobs/reminder.job";
 import processCleanupJob from "../jobs/cleanup.job";
 import processInvitationJob from "../jobs/invitation.job";
+import processScholarshipJob from "../jobs/scholarship.job";
 
 /**
  * Scheduler Workers
@@ -82,6 +83,17 @@ export const startSchedulerWorkers = async (): Promise<void> => {
     await BullQueue.addProcessor(
       invitationWorkerConfig,
       processInvitationJob as any,
+    );
+
+    const scholarshipWorkerConfig: CreateWorkerDTO = {
+      queueName: QueueChannel.Scholarships,
+      jobName: JobChannel.ProcessScholarship,
+      concurrency: 5,
+    };
+
+    await BullQueue.addProcessor(
+      scholarshipWorkerConfig,
+      processScholarshipJob as any,
     );
 
     logger.log({

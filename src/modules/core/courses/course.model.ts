@@ -44,6 +44,12 @@ const courseSchema = new Schema<ICourse>(
       min: 0,
     },
 
+    scholarshipPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
     currency: {
       type: String,
       required: true,

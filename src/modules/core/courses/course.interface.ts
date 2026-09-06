@@ -13,6 +13,7 @@ export interface ICourse extends Document {
   thumbnail?: string;
 
   price: number;
+  scholarshipPrice: number; // unit
   currency: string;
 
   payment: {
@@ -42,6 +43,7 @@ export interface CreateCourseDto {
   thumbnail?: string;
 
   price: number; // unit
+  scholarshipPrice: number; // unit
   currency: string;
 
   payment: {
@@ -65,6 +67,7 @@ export interface UpdateCourseDto {
   thumbnail?: string;
 
   price?: number;
+  scholarshipPrice?: number; // unit
   currency?: string;
 
   payment?: {

@@ -43,6 +43,7 @@ export enum DbModels {
   MODULE = "module",
 
   ENROLLMENT = "enrollment",
+  SCHOLARSHIP = "scholarship",
 }
 
 export enum FileType {
@@ -112,6 +113,8 @@ export enum EmailTemplate {
   TRIAL_STARTED = "trial-started",
   RECOMMENDATION = "recommendation",
   HACKATHONS_THIS_WEEK = "hackathons-this-week",
+  SCHOLARSHIP_APPROVED = "scholarship-approved",
+  COURSE_ENROLLMENT_CONFIRMED = "course-enrollment-confirmed",
 }
 export enum EmailStatus {
   SENT = "sent",

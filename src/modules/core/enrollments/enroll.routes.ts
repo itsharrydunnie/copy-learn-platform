@@ -7,10 +7,13 @@ import {
   getMyEnrollment,
   getCourseAccess,
 } from "./enroll.controller";
+import { createScholarship } from "../scholarships/scholarship.controller";
 
 const enrollmentRoutes = Router({ mergeParams: true });
 
 enrollmentRoutes.use(Protect);
+
+enrollmentRoutes.post("/scholarship", createScholarship);
 
 enrollmentRoutes.post("/", createEnrollment);
 

@@ -54,6 +54,11 @@ export interface IPaystackVerifyResponse {
   data: any;
 }
 
+export interface IPaystackWebhookCustomer {
+  id?: number;
+  customer_code?: string;
+  email: string;
+}
 export interface IPaystackWebhookData {
   id: number;
 
@@ -69,6 +74,8 @@ export interface IPaystackWebhookData {
 
   message: string | null;
   gateway_response: string;
+
+  customer?: IPaystackWebhookCustomer;
 
   metadata: Record<string, unknown> | null;
 }
