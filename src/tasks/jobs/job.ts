@@ -10,7 +10,7 @@ import { JobOptions } from "bull";
  * @param job
  */
 
-const addJob = async (payload: AddJobDTO) => {
+const addJob = (payload: AddJobDTO) => {
   const { queueName, jobName, data, options } = payload;
 
   // Determine the Job ID: use provided ID or generate a new one
@@ -26,7 +26,7 @@ const addJob = async (payload: AddJobDTO) => {
   // Get the final jobId that will be used
   const jobId = jobOptions.jobId || generatedJobId;
 
-  await BullQueue.addJobs({
+  BullQueue.addJobs({
     queueName: queueName,
     jobs: [
       {

@@ -12,7 +12,7 @@ import ProgramRepository from "../programs/program.repository";
 import CourseRepository from "../courses/course.repository";
 import { Types } from "mongoose";
 import TransactionService from "@/modules/payments/transaction/transaction.service";
-import { ICourse } from "../courses/course.interface";
+import { CourseStatus, ICourse } from "../courses/course.interface";
 
 class EnrollmentService {
   constructor(
@@ -116,11 +116,12 @@ class EnrollmentService {
       };
     }
 
-    const activeEnrollment = await this.enrollmentRepository.getActiveEnrollment(
-      userId,
-      dto.targetType,
-      dto.targetId,
-    );
+    const activeEnrollment =
+      await this.enrollmentRepository.getActiveEnrollment(
+        userId,
+        dto.targetType,
+        dto.targetId,
+      );
 
     if (!activeEnrollment.error && activeEnrollment.data) {
       return {
@@ -131,11 +132,12 @@ class EnrollmentService {
       };
     }
 
-    const pendingEnrollment = await this.enrollmentRepository.getPendingEnrollment(
-      userId,
-      dto.targetType,
-      dto.targetId,
-    );
+    const pendingEnrollment =
+      await this.enrollmentRepository.getPendingEnrollment(
+        userId,
+        dto.targetType,
+        dto.targetId,
+      );
 
     if (!pendingEnrollment.error && pendingEnrollment.data) {
       return this.transactionService.initializePayment(
@@ -162,6 +164,15 @@ class EnrollmentService {
      * Course enrollment rules
      */
     const course = target.data as ICourse;
+
+    if (course.status !== CourseStatus.PUBLISHED) {
+      return {
+        error: true,
+        message: "Enrollment is currently disabled for this course",
+        code: 400,
+        data: {},
+      };
+    }
 
     if (!course.enrollmentEnabled) {
       return {

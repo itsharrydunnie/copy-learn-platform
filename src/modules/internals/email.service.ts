@@ -264,7 +264,7 @@ class AppEmailService {
     // Determine the final job data payload (IEmailJob structure)
     const { driver, user, options, code, metadata, template } = config;
     const _template = template;
-    const subject = options?.subject || "Troott Notification";
+    const subject = options?.subject || "Learn Notification";
 
     const jobData: IEmailJob = {
       user,
@@ -608,20 +608,25 @@ class AppEmailService {
       };
     },
   ): Promise<IResult> {
-    return this.queueEmailJob({
+    const scholarshipPrice = courseService.fromMinorUnit(
+      course.scholarshipPrice,
+    );
+    const queueResult = await this.queueEmailJob({
       driver: this.config.service,
       user,
       template: EmailTemplate.SCHOLARSHIP_APPROVED,
       options: {
-        subject: "Congratulations! Your scholarship has been approved 🎉",
+        subject: "Congratulations! Your scholarship has been approved!",
         salute: `Hi ${user.firstName},`,
         bodyOne: `Your scholarship application for ${course.title} has been approved.`,
-        bodyTwo: `To secure your place, please complete the enrollment payment of ${course.currency} ${courseService.fromMinorUnit(course.scholarshipPrice)}.`,
-        bodyThree: `Once your payment is confirmed, your course enrollment will be activated.`,
+        bodyTwo: `You can now secure your place in Onaeko Academy, ${course.title}, Program at the discounted scholarship price of ${course.currency} ${scholarshipPrice}.`,
+        bodyThree: `Once your payment is confirmed, your enrollment will be activated.`,
         buttonText: "Complete Enrollment",
         buttonUrl: course.payment.shopUrl,
       },
     });
+
+    return queueResult;
   }
   async sendCourseEnrollmentConfirmedEmail(
     user: IUserDoc,
@@ -634,11 +639,11 @@ class AppEmailService {
       user,
       template: EmailTemplate.COURSE_ENROLLMENT_CONFIRMED,
       options: {
-        subject: "You're in! Your course enrollment is confirmed 🎉",
+        subject: "You're in! Your course enrollment is confirmed!",
         salute: `Hi ${user.firstName},`,
         bodyOne: `Your payment for ${course.title} has been confirmed.`,
-        bodyTwo: `Your course enrollment is now active.`,
-        bodyThree: `You can now access the course and begin learning.`,
+        bodyTwo: `You are now officially enrolled in the Onaeko ${course.title} Program.`,
+        bodyThree: `You can now access your Onaeko course content and begin your learning journey.`,
         buttonText: "Start Learning",
         buttonUrl: `${this.config.clientUrl}/courses/${course.slug}`,
       },

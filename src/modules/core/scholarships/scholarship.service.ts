@@ -214,7 +214,7 @@ class ScholarshipService {
       },
       {
         // delay: 3 * 24 * 60 * 60 * 1000,
-        delay: 30 * 1000,
+        delay: 60 * 1000,
         jobId: `scholarship-approval-${scholarship._id}`,
       },
     );
