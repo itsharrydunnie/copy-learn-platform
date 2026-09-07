@@ -43,8 +43,8 @@ You will also need MongoDB and Redis running before starting the API, as the app
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/itsharrydunnie/copy-learn-platform.git
-cd copy-learn-platform
+git clone https://github.com/pacepard/pacepard-api-ts.git
+cd pacepard-api-ts
 ```
 
 ### Install Dependencies
