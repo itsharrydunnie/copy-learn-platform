@@ -1,0 +1,10 @@
+import "../setup";
+import { Types } from "mongoose";
+import Scholarship from "../../src/modules/core/scholarships/scholarship.model";
+import Enrollment from "../../src/modules/core/enrollments/enroll.model";
+import Transaction from "../../src/modules/payments/transaction/transaction.model";
+import { createCourse,createScholarship } from "../factories";
+import { EnrollmentStatus,EnrollmentTargetType,EnrollmentType } from "../../src/modules/core/enrollments/enroll.interface";
+import { ScholarshipStatus } from "../../src/modules/core/scholarships/scholarship.interface";
+import { TransactionLabel,TransactionStatus,TransactionType } from "../../src/modules/payments/transaction/transaction.interface";
+describe("Scholarship workflow foundation",()=>{it("represents approved scholarship to pending enrollment and transaction",async()=>{const userId=new Types.ObjectId();const course=await createCourse();const scholarship=await createScholarship({userId,targetId:course._id});await Scholarship.findByIdAndUpdate(scholarship._id,{status:ScholarshipStatus.APPROVED});const enrollment=await Enrollment.create({userId,targetType:EnrollmentTargetType.COURSE,targetId:course._id,status:EnrollmentStatus.PENDING,enrollmentType:EnrollmentType.SCHOLARSHIP});const transaction=await Transaction.create({type:TransactionType.PAYMENT,status:TransactionStatus.PENDING,label:TransactionLabel.COURSE_PAYMENT,reference:"test-"+scholarship._id,currency:course.currency,amount:course.scholarshipPrice,unitAmount:course.scholarshipPrice/100,providerName:"paystack",userId,enrollmentId:enrollment._id,courseId:course._id});expect((await Scholarship.findById(scholarship._id))?.status).toBe(ScholarshipStatus.APPROVED);expect(enrollment.status).toBe(EnrollmentStatus.PENDING);expect(transaction.status).toBe(TransactionStatus.PENDING);});});
