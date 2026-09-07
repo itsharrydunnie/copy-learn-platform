@@ -109,12 +109,6 @@ Start the API in development mode:
 pnpm dev
 ```
 
-This runs:
-
-```
-tsx watch src/server.ts
-```
-
 The application startup flow connects the services required by the API before starting the server:
 
 ```
@@ -244,8 +238,8 @@ We welcome contributions and improvements to Pacepard.
 Fork the repository, then clone your fork:
 
 ```bash
-git clone https://github.com/your-username/copy-learn-platform.git
-cd copy-learn-platform
+git clone https://github.com/pacepard/pacepard-api-ts.git
+cd pacepard-api-ts
 ```
 
 ### 2. Create a Branch
